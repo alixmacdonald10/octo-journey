@@ -4,13 +4,12 @@ mod utils;
 use std::sync::Arc;
 
 use axum::{
-    routing::{get, post},
-    Router,
+    http::StatusCode, response::IntoResponse, routing::{get, post}, Router
 };
 use clap::{value_parser, Arg, ArgAction, Command};
 use tokio::{net::TcpListener, signal};
 use tower_http::trace::TraceLayer;
-use tracing::Level;
+use tracing::{event, Level};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::SharedState;
 
@@ -95,6 +94,7 @@ async fn psuedo_main(server_address: String, server_port: String) {
             "/v1/analyze",
             get(v1::analyze).with_state(Arc::clone(&shared_state)),
         )
+        .fallback(handler_404)
         .layer(TraceLayer::new_for_http());
 
     let listener = TcpListener::bind(format!("{}:{}", server_address, server_port))
@@ -110,6 +110,11 @@ async fn psuedo_main(server_address: String, server_port: String) {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
+}
+
+async fn handler_404() -> impl IntoResponse {
+    event!(Level::INFO, "Route not found!");
+    (StatusCode::NOT_FOUND, "Route not found. Maybe some nasty octopus moved it...")
 }
 
 async fn shutdown_signal() {
