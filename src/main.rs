@@ -95,8 +95,12 @@ async fn psuedo_main(server_address: String, server_port: String) {
             get(v1::spot_check).with_state(Arc::clone(&shared_state)),
         )
         .route(
-            "/v1/analyze",
-            get(v1::analyze).with_state(Arc::clone(&shared_state)),
+            "/v1/capture",
+            post(v1::capture).with_state(Arc::clone(&shared_state)),
+        )
+        .route(
+            "/v1/tag",
+            post(v1::tag).with_state(Arc::clone(&shared_state)),
         )
         .fallback(handler_404)
         .layer(TraceLayer::new_for_http());
