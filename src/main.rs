@@ -86,6 +86,7 @@ async fn psuedo_main(server_address: String, server_port: String) {
 
     // TODO: proper mietted error handling
     let app = Router::new()
+        .route("/", get(root))
         .route(
             "/v1/spot-check",
             get(v1::spot_check).with_state(Arc::clone(&shared_state)),
@@ -110,6 +111,11 @@ async fn psuedo_main(server_address: String, server_port: String) {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
+}
+
+async fn root() -> Html<&'static str> {
+    event!(Level::INFO, "Root route hit!");
+    Html("<h1>Octo-Journey is up and running!</h1>")
 }
 
 async fn handler_404() -> impl IntoResponse {
