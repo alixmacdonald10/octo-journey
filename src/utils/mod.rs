@@ -22,6 +22,7 @@ pub(crate) struct AppState {
     pub(crate) tagged_octopi: HashMap<Uuid, TaggedOctopus>,
 }
 
+/// Best described as a quick glance in your Octopus sacks
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub(crate) struct OctopiSnapshot {
     pub(crate) untagged_octopi: HashMap<Uuid, UntaggedOctopus>,
@@ -40,6 +41,7 @@ impl OctopiSnapshot {
     }
 }
 
+/// An unknown octopus that you are yet to get acquianted with.
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub(crate) struct UntaggedOctopus {
     #[schema(example = IdentifyingFeature::RatherRude)]
@@ -80,6 +82,7 @@ impl UntaggedOctopus {
     }
 }
 
+/// A an Octopus thats now your friend. Oooooo friends
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub(crate) struct TaggedOctopus {
     pub(crate) name: String,
@@ -87,6 +90,8 @@ pub(crate) struct TaggedOctopus {
     pub(crate) identifying_feature: IdentifyingFeature,
 }
 
+/// As you're rather obeservant you notice all Octopus have some distinguishing feature.
+/// And what makes it even stranger is there only appears to be a finite amount!
 #[derive(Default, Debug, Serialize, Clone, Eq, PartialEq, ToSchema)]
 pub(crate) enum IdentifyingFeature {
     ReadsTooMuchFiction,
