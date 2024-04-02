@@ -15,6 +15,8 @@ use tower_http::trace::TraceLayer;
 use tracing::{event, Level};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::SharedState;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::services::*;
 
@@ -85,23 +87,31 @@ fn main() {
 
 #[tokio::main]
 async fn psuedo_main(server_address: String, server_port: String) {
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(
+            v1::spot_check,
+            v1::capture,
+            v1::tag,
+        ),
+        components(
+            schemas(utils::OctopiSnapshot, utils::UntaggedOctopus, utils::TaggedOctopus, utils::IdentifyingFeature)
+        ),
+        tags(
+            (name = "octo-journey", description = "A simple test server.")
+        )
+    )]
+    struct ApiDoc;
+
     let shared_state = SharedState::default();
 
     // TODO: proper mietted error handling
     let app = Router::new()
-        .route("/", get(root))
-        .route(
-            "/v1/spot-check",
-            get(v1::spot_check).with_state(Arc::clone(&shared_state)),
-        )
-        .route(
-            "/v1/capture",
-            post(v1::capture).with_state(Arc::clone(&shared_state)),
-        )
-        .route(
-            "/v1/tag",
-            post(v1::tag).with_state(Arc::clone(&shared_state)),
-        )
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/v1/spot-check", get(v1::spot_check))
+        .route("/v1/capture", post(v1::capture))
+        .route("/v1/tag", post(v1::tag))
+        .with_state(Arc::clone(&shared_state))
         .fallback(handler_404)
         .layer(TraceLayer::new_for_http());
 
@@ -118,11 +128,6 @@ async fn psuedo_main(server_address: String, server_port: String) {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
-}
-
-async fn root() -> Html<&'static str> {
-    event!(Level::INFO, "Root route hit!");
-    Html("<h1>Octo-Journey is up and running!</h1>")
 }
 
 async fn handler_404() -> impl IntoResponse {

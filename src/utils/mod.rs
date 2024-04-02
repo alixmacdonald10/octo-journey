@@ -1,10 +1,14 @@
 use std::{collections::HashMap, sync::Arc};
 
-use rand::{distributions::{Distribution, Standard}, Rng};
-use serde::Serialize;
-use tokio::sync::{RwLock, Mutex};
-use uuid::Uuid;
 use lazy_static::lazy_static;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
+use serde::Serialize;
+use tokio::sync::{Mutex, RwLock};
+use utoipa::ToSchema;
+use uuid::Uuid;
 
 lazy_static! {
     static ref NAME_COUNTER: Mutex<usize> = Mutex::new(0);
@@ -15,37 +19,52 @@ pub(crate) type SharedState = Arc<RwLock<AppState>>;
 #[derive(Default, Debug)]
 pub(crate) struct AppState {
     pub(crate) untagged_octopi: HashMap<Uuid, UntaggedOctopus>,
-    pub(crate) tagged_octopi: HashMap<Uuid, TaggedOctopus>
+    pub(crate) tagged_octopi: HashMap<Uuid, TaggedOctopus>,
 }
 
+#[derive(Debug, Serialize, Clone, ToSchema)]
+pub(crate) struct OctopiSnapshot {
+    pub(crate) untagged_octopi: HashMap<Uuid, UntaggedOctopus>,
+    pub(crate) tagged_octopi: HashMap<Uuid, TaggedOctopus>,
+}
 
-#[derive(Debug, Serialize, Clone)]
+impl OctopiSnapshot {
+    pub(crate) fn new(
+        untagged_octopi: HashMap<Uuid, UntaggedOctopus>,
+        tagged_octopi: HashMap<Uuid, TaggedOctopus>,
+    ) -> Self {
+        OctopiSnapshot {
+            untagged_octopi,
+            tagged_octopi,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub(crate) struct UntaggedOctopus {
+    #[schema(example = IdentifyingFeature::RatherRude)]
     pub(crate) identifying_feature: IdentifyingFeature,
 }
 
 impl Default for UntaggedOctopus {
     fn default() -> Self {
         let identifying_feature: IdentifyingFeature = rand::random();
-        
+
         UntaggedOctopus {
-            identifying_feature 
+            identifying_feature,
         }
     }
 }
 
-
 impl UntaggedOctopus {
-
     pub(crate) fn new() -> UntaggedOctopus {
         UntaggedOctopus::default()
     }
 
     pub(crate) async fn tag(self: &Self) -> TaggedOctopus {
-        
         let mut name = String::new();
-        let mut name_counter = NAME_COUNTER.lock().await; 
-                
+        let mut name_counter = NAME_COUNTER.lock().await;
+
         if *name_counter == 0 as usize {
             name = String::from("Original Barry");
         } else {
@@ -53,7 +72,7 @@ impl UntaggedOctopus {
         }
 
         *name_counter += 1;
-    
+
         TaggedOctopus {
             name,
             identifying_feature: self.identifying_feature.clone(),
@@ -61,13 +80,14 @@ impl UntaggedOctopus {
     }
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub(crate) struct TaggedOctopus {
     pub(crate) name: String,
+    #[schema(example = IdentifyingFeature::RatherRude)]
     pub(crate) identifying_feature: IdentifyingFeature,
 }
 
-#[derive(Default, Debug, Serialize, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Clone, Eq, PartialEq, ToSchema)]
 pub(crate) enum IdentifyingFeature {
     ReadsTooMuchFiction,
     TopHat,
@@ -93,5 +113,3 @@ impl Distribution<IdentifyingFeature> for Standard {
         }
     }
 }
-
-

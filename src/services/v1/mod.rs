@@ -1,18 +1,26 @@
 use std::{collections::HashMap, time::Duration};
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use axum_macros::debug_handler;
 use rand::distributions::{Distribution, Uniform};
 use tokio::time::sleep;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::utils::{SharedState, TaggedOctopus, UntaggedOctopus};
+use crate::utils::{
+    IdentifyingFeature, OctopiSnapshot, SharedState, TaggedOctopus, UntaggedOctopus,
+};
 
 // TODO: handle the errors
-/// Endpoint used to check the register of octopi
+/// Endpoint used to check the register of octopi, both tagged and untagged.
+#[utoipa::path(
+    get,
+    path = "/v1/spot-check",
+    responses(
+        (status = 200, description = "Success", body = OctopiSnapshot, example = json!(OctopiSnapshot::new(HashMap::from([(Uuid::new_v4(), UntaggedOctopus::new())]), HashMap::from([(Uuid::new_v4(), TaggedOctopus { name: "original Barry".to_string(), identifying_feature: IdentifyingFeature::RatherRude })]))))
+    )
+)]
 #[instrument]
-pub(crate) async fn spot_check(State(state): State<SharedState>) -> Json<serde_json::Value> {
+pub(crate) async fn spot_check(State(state): State<SharedState>) -> impl IntoResponse {
     event!(Level::INFO, "Checking current information for Octopi!");
 
     let lock = &state.read().await;
@@ -22,13 +30,29 @@ pub(crate) async fn spot_check(State(state): State<SharedState>) -> Json<serde_j
 
     let tagged_octopi = &lock.tagged_octopi;
     tracing::debug!("Tagged octopi: {:?}", tagged_octopi);
-    Json(serde_json::json!((untagged_octopi, tagged_octopi)))
+
+    (
+        StatusCode::OK,
+        Json(OctopiSnapshot::new(
+            untagged_octopi.to_owned(),
+            tagged_octopi.to_owned(),
+        )),
+    )
+        .into_response()
 }
 
 // TODO: handle the error
-/// Nonensense endpoint which can randomly finds a new octopus and adds to the register.
+/// Nonesense endpoint which can randomly find a new octopus and adds to the register of untagged Octopi.
+#[utoipa::path(
+    post,
+    path = "/v1/capture",
+    responses(
+        (status = 201, description = "Octopus captured successfully", body = UntaggedOctopus, example = json!(UntaggedOctopus::new())),
+        (status = 200, description = "No Octopus found")
+    )
+)]
 #[instrument]
-pub(crate) async fn capture(State(state): State<SharedState>) -> Json<serde_json::Value> {
+pub(crate) async fn capture(State(state): State<SharedState>) -> impl IntoResponse {
     event!(Level::INFO, "Searching for Octopi to analyze!");
     let random_value = {
         // range is not send so make sure its out of context prior to awaiting
@@ -39,7 +63,7 @@ pub(crate) async fn capture(State(state): State<SharedState>) -> Json<serde_json
 
     if random_value > 50 {
         tracing::debug!("No octopus found this time... slipery little buggers");
-        return Json(serde_json::json!({"message": "No octopus captured!"}));
+        (StatusCode::OK,).into_response()
     } else {
         tracing::debug!("Octopus found!");
 
@@ -53,24 +77,33 @@ pub(crate) async fn capture(State(state): State<SharedState>) -> Json<serde_json
             octopi.insert(octopus_id, octopus.clone());
         }
 
-        return Json(serde_json::json!(octopus));
+        (StatusCode::CREATED, Json(octopus)).into_response()
     }
 }
 
 // TODO: handle errors
-/// A deliberately long winded function for load testing purposes. Holds a lock
+/// A deliberately long winded function for load testing purposes. Checks through the entire
+/// untagged octopi register before then tagging them all, adding them to the tagged octopi
+/// register and removing them from the untagged register. Because why not.
+#[utoipa::path(
+    post,
+    path = "/v1/tag",
+    responses(
+        (status = 200, description = "Octopus succesfully tagged", body = HashMap<Uuid, TaggedOctopus>, example = json!(HashMap::from([(Uuid::new_v4(), TaggedOctopus { name: "original Barry".to_string(), identifying_feature: IdentifyingFeature::RatherRude })]))),
+    )
+)]
 #[instrument]
 pub(crate) async fn tag(State(state): State<SharedState>) -> impl IntoResponse {
     event!(Level::INFO, "Tagging currently untagged Octopi!");
-    
+
     let mut updated_octopi: Vec<(Uuid, TaggedOctopus)> = Vec::new();
     {
         let untagged_octopi = &state.read().await.untagged_octopi;
 
-            for (id, octopus) in untagged_octopi {
+        for (id, octopus) in untagged_octopi {
             tracing::trace!("Checking Octopus {}", id);
             sleep(Duration::from_millis(100)).await;
-            
+
             tracing::debug!("Tagging Octopus {}", id);
             let tagged_octopus = octopus.tag().await;
 
@@ -92,5 +125,5 @@ pub(crate) async fn tag(State(state): State<SharedState>) -> impl IntoResponse {
         tracing::trace!("Adding octopus {} to tagged octopi", id);
         tagged_octopi.insert(id.to_owned(), octopus.to_owned());
     }
-    (StatusCode::OK)
+    (StatusCode::OK, Json(tagged_octopi.clone())).into_response()
 }
