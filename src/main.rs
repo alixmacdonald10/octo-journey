@@ -4,7 +4,10 @@ mod utils;
 use std::sync::Arc;
 
 use axum::{
-    http::StatusCode, response::IntoResponse, routing::{get, post}, Router
+    http::StatusCode,
+    response::{Html, IntoResponse},
+    routing::{get, post},
+    Router,
 };
 use clap::{value_parser, Arg, ArgAction, Command};
 use tokio::{net::TcpListener, signal};
@@ -120,7 +123,10 @@ async fn root() -> Html<&'static str> {
 
 async fn handler_404() -> impl IntoResponse {
     event!(Level::INFO, "Route not found!");
-    (StatusCode::NOT_FOUND, "Route not found. Maybe some nasty octopus moved it...")
+    (
+        StatusCode::NOT_FOUND,
+        "Route not found. Maybe some nasty octopus moved it...",
+    )
 }
 
 async fn shutdown_signal() {
