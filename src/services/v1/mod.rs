@@ -11,7 +11,8 @@ use crate::utils::{
 };
 
 // TODO: handle the errors
-/// Endpoint used to check the register of octopi, both tagged and untagged.
+/// A quick check in the bags to see how many Octopi you've kidnapped. Splits the Octopi into
+/// untagged and tagged versions.
 #[utoipa::path(
     get,
     path = "/v1/spot-check",
@@ -42,7 +43,7 @@ pub(crate) async fn spot_check(State(state): State<SharedState>) -> impl IntoRes
 }
 
 // TODO: handle the error
-/// Nonesense endpoint which can randomly find a new octopus and adds to the register of untagged Octopi.
+/// Search the depths for any a hidden Octopus. If found its dragged kicking and screaming and shoved into your UntaggedOctopus register.
 #[utoipa::path(
     post,
     path = "/v1/capture",
@@ -82,9 +83,9 @@ pub(crate) async fn capture(State(state): State<SharedState>) -> impl IntoRespon
 }
 
 // TODO: handle errors
-/// A deliberately long winded function for load testing purposes. Checks through the entire
-/// untagged octopi register before then tagging them all, adding them to the tagged octopi
-/// register and removing them from the untagged register. Because why not.
+/// Get your thinking cap out, sit down and pull the Octopi one by one from the Untagged register.
+/// Giving each a imaginative name (tagging) and then stuffing them back into the Tagged register.
+/// A deliberately long winded function for load testing purposes. Because why not.
 #[utoipa::path(
     post,
     path = "/v1/tag",
