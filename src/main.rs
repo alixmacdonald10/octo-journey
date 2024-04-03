@@ -4,19 +4,21 @@ mod utils;
 use std::sync::Arc;
 
 use axum::{
-    http::StatusCode,
-    response::{Html, IntoResponse},
+    extract::MatchedPath,
+    http::{Request, StatusCode},
+    response::IntoResponse,
     routing::{get, post},
     Router,
 };
 use clap::{value_parser, Arg, ArgAction, Command};
 use tokio::{net::TcpListener, signal};
 use tower_http::trace::TraceLayer;
-use tracing::{event, Level};
+use tracing::{event, info_span, Level, Span};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utils::SharedState;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use uuid::Uuid;
 
 use crate::services::*;
 
@@ -76,7 +78,7 @@ fn main() {
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_env_var.into()),
         )
-        .with(tracing_subscriber::fmt::layer().compact())
+        .with(tracing_subscriber::fmt::layer().pretty())
         .init();
     tracing::info!("Server address: {}", address);
     tracing::info!("Server port: {}", port);
@@ -113,8 +115,29 @@ async fn psuedo_main(server_address: String, server_port: String) {
         .route("/v1/tag", post(v1::tag))
         .with_state(Arc::clone(&shared_state))
         .fallback(handler_404)
-        .layer(TraceLayer::new_for_http());
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request<_>| {
+                    // Log the matched route's path (with placeholders not filled in).
+                    // Use request.uri() or OriginalUri if you want the real path.
+                    let matched_path = request
+                        .extensions()
+                        .get::<MatchedPath>()
+                        .map(MatchedPath::as_str);
 
+                    info_span!(
+                        "http_request",
+                        method = ?request.method(),
+                        matched_path,
+                        request_id = tracing::field::Empty,
+                    )
+                })
+                .on_request(|_request: &Request<_>, _span: &Span| {
+                    _span.record("request_id", Uuid::new_v4().to_string());
+                })
+        );
+
+    // Completely fine with unwraps at this stage
     let listener = TcpListener::bind(format!("{}:{}", server_address, server_port))
         .await
         .expect(
@@ -124,6 +147,7 @@ async fn psuedo_main(server_address: String, server_port: String) {
             )
             .as_str(),
         );
+
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
