@@ -62,16 +62,15 @@ impl UntaggedOctopus {
     pub(crate) fn new() -> UntaggedOctopus {
         UntaggedOctopus::default()
     }
-
+    
+    /// Ooo you've made freinds with your octopus and you've given them a name!
     pub(crate) async fn tag(self: &Self) -> TaggedOctopus {
-        let mut name = String::new();
         let mut name_counter = NAME_COUNTER.lock().await;
-
-        if *name_counter == 0 as usize {
-            name = String::from("Original Barry");
-        } else {
-            name = format!("Barry {:?}", name_counter);
-        }
+    
+        let name =  match *name_counter {
+            0 => String::from("Original Barry"),
+            _ => format!("Barry {:?}", name_counter),
+        };
 
         *name_counter += 1;
 
@@ -104,6 +103,7 @@ pub(crate) enum IdentifyingFeature {
     ActuallyADecentBloke,
 }
 
+/// Implement Distribution so you can grab a random value
 impl Distribution<IdentifyingFeature> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> IdentifyingFeature {
         match rng.gen_range(0..=7) {
