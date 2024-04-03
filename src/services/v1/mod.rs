@@ -95,7 +95,7 @@ pub(crate) async fn capture(State(state): State<SharedState>) -> impl IntoRespon
 )]
 #[instrument]
 pub(crate) async fn tag(State(state): State<SharedState>) -> impl IntoResponse {
-    event!(Level::INFO, "Tagging currently untagged Octopi!");
+    event!(Level::INFO, "Making Octopi friends!");
 
     let mut updated_octopi: Vec<(Uuid, TaggedOctopus)> = Vec::new();
     {

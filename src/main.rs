@@ -182,7 +182,7 @@ async fn shutdown_signal() {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {tracing::event!(Level::WARN, "Gracefully shutting down")},
-        _ = terminate => {tracing::event!(Level::ERROR, "Violently shutting down. Use CTRL+C to gracefully shutdown")},
+        _ = ctrl_c => {tracing::event!(Level::WARN, "Gracefully shutting down. You win this time octopi...")},
+        _ = terminate => {tracing::event!(Level::ERROR, "Violently shutting down. Use CTRL+C to gracefully shutdown. BURN IT DOWN")},
     }
 }
