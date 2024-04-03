@@ -1,16 +1,15 @@
 use std::{collections::HashMap, time::Duration};
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::State, http::StatusCode, response::{IntoResponse, Response}, Json};
 use rand::distributions::{Distribution, Uniform};
 use tokio::time::sleep;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::utils::{
+use crate::{error::AppError, utils::{
     IdentifyingFeature, OctopiSnapshot, SharedState, TaggedOctopus, UntaggedOctopus,
-};
+}};
 
-// TODO: handle the errors
 /// A quick check in the bags to see how many Octopi you've kidnapped. Splits the Octopi into
 /// untagged and tagged versions.
 #[utoipa::path(
@@ -49,11 +48,11 @@ pub(crate) async fn spot_check(State(state): State<SharedState>) -> impl IntoRes
     path = "/v1/capture",
     responses(
         (status = 201, description = "Octopus captured successfully", body = UntaggedOctopus, example = json!(UntaggedOctopus::new())),
-        (status = 200, description = "No Octopus found")
+        (status = 500, description = "No Octopus found", body = AppError)
     )
 )]
 #[instrument]
-pub(crate) async fn capture(State(state): State<SharedState>) -> impl IntoResponse {
+pub(crate) async fn capture(State(state): State<SharedState>) -> Result<Response, AppError> {
     event!(Level::INFO, "Searching for Octopi to analyze!");
     let random_value = {
         // range is not send so make sure its out of context prior to awaiting
@@ -64,7 +63,7 @@ pub(crate) async fn capture(State(state): State<SharedState>) -> impl IntoRespon
 
     if random_value > 50 {
         tracing::debug!("No octopus found this time... slipery little buggers");
-        (StatusCode::OK,).into_response()
+        Err(anyhow::anyhow!("Failed to find octopus!").into())  
     } else {
         tracing::debug!("Octopus found!");
 
@@ -78,11 +77,10 @@ pub(crate) async fn capture(State(state): State<SharedState>) -> impl IntoRespon
             octopi.insert(octopus_id, octopus.clone());
         }
 
-        (StatusCode::CREATED, Json(octopus)).into_response()
+        Ok((StatusCode::CREATED, Json(octopus)).into_response())
     }
 }
 
-// TODO: handle errors
 /// Get your thinking cap out, sit down and pull the Octopi one by one from the Untagged register.
 /// Giving each a imaginative name (tagging) and then stuffing them back into the Tagged register.
 /// A deliberately long winded function for load testing purposes. Because why not.

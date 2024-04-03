@@ -1,3 +1,4 @@
+mod error;
 mod services;
 mod utils;
 
@@ -56,21 +57,24 @@ fn main() {
     // unwraps are fine as Clap has validated the inputs already
     let address = matches.get_one::<String>("address").unwrap().to_owned();
     let port = matches.get_one::<u32>("port").unwrap().to_string();
-    let log_level = match matches
-        .get_one::<u8>("verbosity")
-        .expect("Count's are defaulted")
-    {
+
+    let get_log_level = |n: u8| match n {
         0 => "info",
         1 => "debug",
         _ => "trace",
     };
+    let parsed_int_log_level = matches
+        .get_one::<u8>("verbosity")
+        .expect("Count's are defaulted");
+    let app_log_level = get_log_level(*parsed_int_log_level);
+    let tower_http_log_level = get_log_level(parsed_int_log_level + 1);
 
     // set both package and tower tracing to log level
     let tracing_env_var = format!(
         "{}={},tower_http={}",
         env!("CARGO_PKG_NAME").replace("-", "_"),
-        log_level,
-        log_level
+        app_log_level,
+        tower_http_log_level
     );
 
     tracing_subscriber::registry()
@@ -82,7 +86,11 @@ fn main() {
         .init();
     tracing::info!("Server address: {}", address);
     tracing::info!("Server port: {}", port);
-    tracing::info!("Log level: {}", log_level);
+    tracing::info!(
+        "App level: {} | Tower HTTP log level: {}",
+        app_log_level,
+        tower_http_log_level
+    );
 
     psuedo_main(address, port);
 }
@@ -97,7 +105,7 @@ async fn psuedo_main(server_address: String, server_port: String) {
             v1::tag,
         ),
         components(
-            schemas(utils::OctopiSnapshot, utils::UntaggedOctopus, utils::TaggedOctopus, utils::IdentifyingFeature)
+            schemas(utils::OctopiSnapshot, utils::UntaggedOctopus, utils::TaggedOctopus, utils::IdentifyingFeature, error::AppError)
         ),
         tags(
             (name = "octo-journey", description = "A simple test server.")
@@ -107,7 +115,6 @@ async fn psuedo_main(server_address: String, server_port: String) {
 
     let shared_state = SharedState::default();
 
-    // TODO: proper mietted error handling
     let app = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/v1/spot-check", get(v1::spot_check))
@@ -116,6 +123,7 @@ async fn psuedo_main(server_address: String, server_port: String) {
         .with_state(Arc::clone(&shared_state))
         .fallback(handler_404)
         .layer(
+            // TODO: add a on_response method to print error message to the console.
             TraceLayer::new_for_http()
                 .make_span_with(|request: &Request<_>| {
                     // Log the matched route's path (with placeholders not filled in).
@@ -130,25 +138,20 @@ async fn psuedo_main(server_address: String, server_port: String) {
                         method = ?request.method(),
                         matched_path,
                         request_id = tracing::field::Empty,
+                        error_message = tracing::field::Empty,
                     )
                 })
                 .on_request(|_request: &Request<_>, _span: &Span| {
                     _span.record("request_id", Uuid::new_v4().to_string());
-                })
+                }),
         );
 
     // Completely fine with unwraps at this stage
     let listener = TcpListener::bind(format!("{}:{}", server_address, server_port))
         .await
-        .expect(
-            format!(
-                "Failed to bind listener to server and port: {}:{}",
-                server_address, server_port
-            )
-            .as_str(),
-        );
+        .unwrap_or_else(|_| panic!("Failed to bind listener to server and port: {}:{}", server_address, server_port)); 
 
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
