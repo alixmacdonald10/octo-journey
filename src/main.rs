@@ -160,6 +160,7 @@ async fn handler_404() -> impl IntoResponse {
         StatusCode::NOT_FOUND,
         "Route not found. Maybe some nasty octopus moved it...",
     )
+        .into_response()
 }
 
 async fn shutdown_signal() {
