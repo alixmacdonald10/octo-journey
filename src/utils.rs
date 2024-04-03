@@ -106,15 +106,14 @@ pub(crate) enum IdentifyingFeature {
 /// Implement Distribution so you can grab a random value
 impl Distribution<IdentifyingFeature> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> IdentifyingFeature {
-        match rng.gen_range(0..=7) {
+        match rng.gen_range(0..7) {
             0 => IdentifyingFeature::ReadsTooMuchFiction,
             1 => IdentifyingFeature::TopHat,
             2 => IdentifyingFeature::AngryExpression,
             3 => IdentifyingFeature::ChainSmoker,
             4 => IdentifyingFeature::RatherRude,
             5 => IdentifyingFeature::FundamentalDistrustInGovernments,
-            6 => IdentifyingFeature::ActuallyADecentBloke,
-            _ => todo!(),
+            _ => IdentifyingFeature::ActuallyADecentBloke,
         }
     }
 }
