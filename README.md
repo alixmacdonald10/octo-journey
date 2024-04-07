@@ -1,4 +1,6 @@
-<img align="left" width="33%" style="padding-right: 20px;" src="./docs/images/octo-journey.jpg" >
+<p align="center">
+  <img align="center" width="33%" src="./docs/images/octo-journey.jpg" >
+</p>
 
 # Overview
 Octo-journey is a test server. 
