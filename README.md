@@ -1,5 +1,9 @@
+<img align="left" width="33%" style="padding-right: 20px;" src="./docs/images/octo-journey.jpg" >
+
 # Overview
-Octo-journey is a test server. You are a rather strange person who hunts for Octopus in the depths of the sea, kidnaps them and then names them. Maybe you don't have any freinds and this is your way of making them? Or perhaps you have some illegal Octopus trading going on? Whatever I don't care. It deliberatly does very little and some requests are sub-optimal as a method of generating load...honest.
+Octo-journey is a test server. 
+
+Imagine you are a rather strange person who hunts for Octopus in the depths of the sea, kidnaps them and then names them. Maybe you don't have any freinds and this is your way of making them? Or perhaps you have some illegal Octopus trading going on? Whatever I don't care. It deliberatly does very little and some requests are sub-optimal as a method of generating load...honest.
 
 # Getting Started
 
